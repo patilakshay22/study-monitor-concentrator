@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusPulse - Study Monitor & Concentrator</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --accent: #059669;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--card-border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: var(--card-border); color: var(--text); }
+    .btn-secondary:hover { opacity: 0.8; }
+    .btn-accent { background: var(--accent); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+
+    main {
+      flex: 1;
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 992px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text);
+    }
+
+    /* Timer Section */
+    .timer-display {
+      text-align: center;
+      padding: 2rem 0;
+    }
+
+    .timer-circle {
+      position: relative;
+      width: 240px;
+      height: 240px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: conic-gradient(var(--primary) 0deg, var(--card-border) 0deg);
+      transition: background 0.3s;
+    }
+
+    .timer-inner {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: var(--card-bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .time-text {
+      font-size: 3.2rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      font-family: monospace;
+    }
+
+    .timer-label {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .timer-controls {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .mode-selector {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      background: var(--bg);
+      padding: 0.25rem;
+      border-radius: 0.5rem;
+    }
+
+    .mode-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 0.4rem;
+      padding: 0.4rem 0.8rem;
+    }
+
+    .mode-btn.active {
+      background: var(--card-bg);
+      color: var(--primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* Ambient Sound Generator */
+    .sounds-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1rem;
+    }
+
+    .sound-card {
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sound-card:hover { border-color: var(--primary); }
+    .sound-card.active { border-color: var(--accent); background: rgba(16, 185, 129, 0.1); }
+
+    .sound-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .sound-name { font-size: 0.85rem; font-weight: 600; }
+    .sound-slider { width: 100%; margin-top: 0.5rem; accent-color: var(--accent); }
+
+    /* Task Planner */
+    .task-input-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    input[type="text"], input[type="number"], select {
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 0.6rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    input[type="text"]:focus { border-color: var(--primary); }
+    .task-input-group input[type="text"] { flex: 1; }
+
+    .task-list {
+      list-style: none;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .task-item:last-child { border-bottom: none; }
+    .task-info { display: flex; align-items: center; gap: 0.75rem; }
+    .task-completed { text-decoration: line-through; color: var(--text-muted); }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      text-align: center;
+    }
+
+    .stat-card {
+      background: var(--bg);
+      padding: 1rem;
+      border-radius: 0.75rem;
+      border: 1px solid var(--card-border);
+    }
+
+    .stat-val { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+    .stat-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+    /* Motivation Quote */
+    .quote-box {
+      font-style: italic;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body data-theme="dark">
+
+  <header>
+    <div class="logo">
+      <span>🧠</span> FocusPulse Monitor
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" id="theme-toggle">🌙 Theme</button>
+      <button class="btn-primary" id="fullscreen-btn">⛶ Focus Mode</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Timer & Ambient Sound -->
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+      <!-- Pomodoro Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>⏱ Concentrator Timer</span>
+          <span id="session-counter" style="font-size: 0.85rem; color: var(--text-muted);">Session #1</span>
+        </div>
+
+        <div class="mode-selector">
+          <button class="mode-btn active" data-time="1500" data-mode="Focus">Focus (25m)</button>
+          <button class="mode-btn" data-time="300" data-mode="Short Break">Short Break (5m)</button>
+          <button class="mode-btn" data-time="900" data-mode="Long Break">Long Break (15m)</button>
+        </div>
+
+        <div class="timer-display">
+          <div class="timer-circle" id="timer-circle">
+            <div class="timer-inner">
+              <div class="time-text" id="time-display">25:00</div>
+              <div class="timer-label" id="timer-mode">Focus Mode</div>
+            </div>
+          </div>
+          <div class="timer-controls">
+            <button class="btn-primary" id="start-btn" style="padding: 0.75rem 2rem; font-size: 1.1rem;">▶ Start</button>
+            <button class="btn-secondary" id="pause-btn" style="display:none; padding: 0.75rem 2rem; font-size: 1.1rem;">⏸ Pause</button>
+            <button class="btn-secondary" id="reset-btn">🔄 Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ambient Sound Generator -->
+      <div class="card">
+        <div class="card-title">
+          <span>🎧 Concentration Audio Synthesizer</span>
+          <span style="font-size: 0.8rem; color: var(--accent);">Web Audio API</span>
+        </div>
+        <div class="sounds-grid">
+          <div class="sound-card" data-sound="rain">
+            <div class="sound-icon">🌧️</div>
+            <div class="sound-name">Rain Ambient</div>
+            <input type="range" class="sound-slider" min="0" max="1" step="0.01" value="0.5">
+          </div>
+          <div class="sound-card" data-sound="white">
+            <div class="sound-icon">📻</div>
+            <div class="sound-name">White Noise</div>
+            <input type="range" class="sound-slider" min="0" max="1" step="0.01" value="0.5">
+          </div>
+          <div class="sound-card" data-sound="waves">
+            <div class="sound-icon">🌊</div>
+            <div class="sound-name">Ocean Waves</div>
+            <input type="range" class="sound-slider" min="0" max="1" step="0.01" value="0.5">
+          </div>
+          <div class="sound-card" data-sound="binaural">
+            <div class="sound-icon">🧘</div>
+            <div class="sound-name">Alpha Beats (10Hz)</div>
+            <input type="range" class="sound-slider" min="0" max="1" step="0.01" value="0.5">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Task Planner & Analytics -->
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+      <!-- Study Stats & Monitor -->
+      <div class="card">
+        <div class="card-title">
+          <span>📊 Real-Time Focus Analytics</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val" id="stat-total-mins">0</div>
+            <div class="stat-desc">Focus Mins Today</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="stat-completed-tasks">0</div>
+            <div class="stat-desc">Tasks Completed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="stat-streak">1</div>
+            <div class="stat-desc">Day Streak 🔥</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Task Planner -->
+      <div class="card">
+        <div class="card-title">
+          <span>📋 Study Plan & Task Tracker</span>
+        </div>
+        <div class="task-input-group">
+          <input type="text" id="new-task-title" placeholder="Add study subject or topic (e.g., Polity Ch. 4)...">
+          <button class="btn-accent" id="add-task-btn">+ Add Task</button>
+        </div>
+        <ul class="task-list" id="task-list">
+          <!-- Dynamic Tasks -->
+        </ul>
+      </div>
+
+      <!-- Motivation & System Info -->
+      <div class="card" style="text-align: center;">
+        <div class="card-title" style="justify-content: center;">💡 Daily Concentration Tip</div>
+        <div class="quote-box" id="quote-text">
+          "Discipline is choosing between what you want now and what you want most."
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // System State & Persistence
+    let state = {
+      totalSeconds: 1500,
+      remainingSeconds: 1500,
+      isRunning: false,
+      mode: 'Focus',
+      timerId: null,
+      stats: JSON.parse(localStorage.getItem('fp_stats')) || { focusMins: 0, completedTasks: 0, streak: 1 },
+      tasks: JSON.parse(localStorage.getItem('fp_tasks')) || [
+        { id: 1, title: 'MPSC GS Paper Study', done: false },
+        { id: 2, title: 'Revision & Mock Test Questions', done: false }
+      ]
+    };
+
+    // DOM Elements
+    const timeDisplay = document.getElementById('time-display');
+    const timerCircle = document.getElementById('timer-circle');
+    const timerMode = document.getElementById('timer-mode');
+    const startBtn = document.getElementById('start-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const taskList = document.getElementById('task-list');
+    const newTaskInput = document.getElementById('new-task-title');
+    const addTaskBtn = document.getElementById('add-task-btn');
+    const statTotalMins = document.getElementById('stat-total-mins');
+    const statCompletedTasks = document.getElementById('stat-completed-tasks');
+    const statStreak = document.getElementById('stat-streak');
+    const themeToggle = document.getElementById('theme-toggle');
+
+    // Web Audio Synthesizer for Concentration Sounds
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    let activeNodes = {};
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new AudioCtx();
+    }
+
+    function toggleSound(type, volume) {
+      initAudio();
+      if (activeNodes[type]) {
+        activeNodes[type].gain.gain.value = volume;
+        if (volume === 0) {
+          activeNodes[type].source.stop();
+          delete activeNodes[type];
+        }
+        return;
+      }
+      if (volume === 0) return;
+
+      let bufferSize = audioCtx.sampleRate * 2;
+      let buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      let output = buffer.getChannelData(0);
+
+      if (type === 'white' || type === 'rain') {
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+      } else if (type === 'waves') {
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.sin(i / 400) * 0.5 + Math.random() * 0.2;
+        }
+      }
+
+      let whiteNoise = audioCtx.createBufferSource();
+      whiteNoise.buffer = buffer;
+      whiteNoise.loop = true;
+
+      let gainNode = audioCtx.createGain();
+      gainNode.gain.value = volume;
+
+      if (type === 'rain') {
+        let filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 800;
+        whiteNoise.connect(filter);
+        filter.connect(gainNode);
+      } else if (type === 'binaural') {
+        // Create 10Hz Binaural Beats (200Hz left, 210Hz right)
+        let osc1 = audioCtx.createOscillator();
+        let osc2 = audioCtx.createOscillator();
+        osc1.frequency.value = 200;
+        osc2.frequency.value = 210;
+
+        let merger = audioCtx.createChannelMerger(2);
+        osc1.connect(merger, 0, 0);
+        osc2.connect(merger, 0, 1);
+        merger.connect(gainNode);
+
+        osc1.start();
+        osc2.start();
+        gainNode.connect(audioCtx.destination);
+        activeNodes[type] = { gain: gainNode, source: { stop: () => { osc1.stop(); osc2.stop(); } } };
+        return;
+      } else {
+        whiteNoise.connect(gainNode);
+      }
+
+      gainNode.connect(audioCtx.destination);
+      whiteNoise.start();
+      activeNodes[type] = { gain: gainNode, source: whiteNoise };
+    }
+
+    // Timer Logic
+    function updateTimerUI() {
+      const mins = Math.floor(state.remainingSeconds / 60);
+      const secs = state.remainingSeconds % 60;
+      timeDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      
+      const pct = ((state.totalSeconds - state.remainingSeconds) / state.totalSeconds) * 360;
+      timerCircle.style.background = `conic-gradient(var(--primary) ${pct}deg, var(--card-border) ${pct}deg)`;
+    }
+
+    function startTimer() {
+      if (state.isRunning) return;
+      state.isRunning = true;
+      startBtn.style.display = 'none';
+      pauseBtn.style.display = 'inline-flex';
+
+      state.timerId = setInterval(() => {
+        if (state.remainingSeconds > 0) {
+          state.remainingSeconds--;
+          updateTimerUI();
+        } else {
+          clearInterval(state.timerId);
+          state.isRunning = false;
+          playBeep();
+          if (state.mode === 'Focus') {
+            state.stats.focusMins += Math.round(state.totalSeconds / 60);
+            saveStats();
+          }
+          alert(`Session Completed: ${state.mode}! Take a well-deserved rest.`);
+          resetTimer();
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      state.isRunning = false;
+      clearInterval(state.timerId);
+      startBtn.style.display = 'inline-flex';
+      pauseBtn.style.display = 'none';
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      state.remainingSeconds = state.totalSeconds;
+      updateTimerUI();
+    }
+
+    function playBeep() {
+      initAudio();
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = 587.33; // D5
+      gain.gain.value = 0.3;
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.8);
+    }
+
+    // Mode Selector
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        state.mode = e.target.dataset.mode;
+        state.totalSeconds = parseInt(e.target.dataset.time);
+        timerMode.textContent = `${state.mode} Mode`;
+        resetTimer();
+      });
+    });
+
+    // Sound Card Listeners
+    document.querySelectorAll('.sound-card').forEach(card => {
+      const soundType = card.dataset.sound;
+      const slider = card.querySelector('.sound-slider');
+
+      card.addEventListener('click', (e) => {
+        if (e.target === slider) return;
+        card.classList.toggle('active');
+        const isActive = card.classList.contains('active');
+        toggleSound(soundType, isActive ? parseFloat(slider.value) : 0);
+      });
+
+      slider.addEventListener('input', (e) => {
+        if (card.classList.contains('active')) {
+          toggleSound(soundType, parseFloat(e.target.value));
+        }
+      });
+    });
+
+    // Tasks Management
+    function renderTasks() {
+      taskList.innerHTML = '';
+      let completedCount = 0;
+      state.tasks.forEach(task => {
+        if (task.done) completedCount++;
+        const li = document.createElement('li');
+        li.className = 'task-item';
+        li.innerHTML = `
+          <div class="task-info">
+            <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTask(${task.id})">
+            <span class="${task.done ? 'task-completed' : ''}">${task.title}</span>
+          </div>
+          <button class="btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="deleteTask(${task.id})">✕</button>
+        `;
+        taskList.appendChild(li);
+      });
+      state.stats.completedTasks = completedCount;
+      saveStats();
+    }
+
+    window.toggleTask = function(id) {
+      state.tasks = state.tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+      saveTasks();
+      renderTasks();
+    };
+
+    window.deleteTask = function(id) {
+      state.tasks = state.tasks.filter(t => t.id !== id);
+      saveTasks();
+      renderTasks();
+    };
+
+    addTaskBtn.addEventListener('click', () => {
+      const title = newTaskInput.value.trim();
+      if (!title) return;
+      state.tasks.push({ id: Date.now(), title, done: false });
+      newTaskInput.value = '';
+      saveTasks();
+      renderTasks();
+    });
+
+    function saveTasks() {
+      localStorage.setItem('fp_tasks', JSON.stringify(state.tasks));
+    }
+
+    function saveStats() {
+      localStorage.setItem('fp_stats', JSON.stringify(state.stats));
+      statTotalMins.textContent = state.stats.focusMins;
+      statCompletedTasks.textContent = state.stats.completedTasks;
+      statStreak.textContent = state.stats.streak;
+    }
+
+    // Event Listeners
+    startBtn.addEventListener('click', startTimer);
+    pauseBtn.addEventListener('click', pauseTimer);
+    resetBtn.addEventListener('click', resetTimer);
+
+    themeToggle.addEventListener('click', () => {
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      themeToggle.textContent = isDark ? '☀️ Light' : '🌙 Dark';
+    });
+
+    document.getElementById('fullscreen-btn').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    // Init
+    updateTimerUI();
+    renderTasks();
+    saveStats();
+  </script>
+</body>
+</html>

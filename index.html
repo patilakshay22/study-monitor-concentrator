@@ -226,7 +226,7 @@
       margin-bottom: 1rem;
     }
 
-    input[type="text"], input[type="number"], select {
+    input[type="text"], input[type="password"], input[type="number"], select {
       background: var(--bg);
       border: 1px solid var(--card-border);
       color: var(--text);
@@ -234,9 +234,10 @@
       border-radius: 0.5rem;
       font-size: 0.9rem;
       outline: none;
+      width: 100%;
     }
 
-    input[type="text"]:focus { border-color: var(--primary); }
+    input[type="text"]:focus, input[type="password"]:focus { border-color: var(--primary); }
     .task-input-group input[type="text"] { flex: 1; }
 
     .task-list {
@@ -283,6 +284,88 @@
       margin-top: 1rem;
       font-size: 0.9rem;
     }
+
+    /* Modal Styling */
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+
+    .modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      width: 100%;
+      max-width: 400px;
+      padding: 2rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-tabs {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .modal-tab {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+    }
+
+    .modal-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--accent);
+      color: var(--text);
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 10000;
+      display: none;
+    }
   </style>
 </head>
 <body data-theme="dark">
@@ -292,6 +375,10 @@
       <span>🧠</span> FocusPulse Monitor
     </div>
     <div class="header-actions">
+      <div id="user-badge" style="display:none; font-weight: 600; color: var(--accent); align-items: center; gap: 0.5rem;">
+        <span>👤</span> <span id="username-display">User</span>
+      </div>
+      <button class="btn-accent" id="auth-btn">🔐 Sign In / Register</button>
       <button class="btn-secondary" id="theme-toggle">🌙 Theme</button>
       <button class="btn-primary" id="fullscreen-btn">⛶ Focus Mode</button>
     </div>
@@ -304,7 +391,7 @@
       <div class="card">
         <div class="card-title">
           <span>⏱ Concentrator Timer</span>
-          <span id="session-counter" style="font-size: 0.85rem; color: var(--text-muted);">Session #1</span>
+          <span id="sync-status" style="font-size: 0.8rem; color: var(--text-muted);">☁️ Cloud Sync Active</span>
         </div>
 
         <div class="mode-selector">
@@ -389,7 +476,7 @@
         </div>
         <div class="task-input-group">
           <input type="text" id="new-task-title" placeholder="Add study subject or topic (e.g., Polity Ch. 4)...">
-          <button class="btn-accent" id="add-task-btn">+ Add Task</button>
+          <button class="btn-accent" id="add-task-btn" style="width: auto;">+ Add Task</button>
         </div>
         <ul class="task-list" id="task-list">
           <!-- Dynamic Tasks -->
@@ -406,6 +493,36 @@
     </div>
   </main>
 
+  <!-- Auth Modal -->
+  <div class="modal-backdrop" id="auth-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Account Access</h3>
+        <button class="btn-secondary" id="close-modal-btn" style="padding: 0.2rem 0.5rem;">✕</button>
+      </div>
+
+      <div class="modal-tabs">
+        <div class="modal-tab active" id="tab-login">Sign In</div>
+        <div class="modal-tab" id="tab-signup">Create Account</div>
+      </div>
+
+      <form id="auth-form">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="auth-username" placeholder="Enter your username" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="auth-password" placeholder="Enter your password" required>
+        </div>
+        <div id="auth-error" style="color: var(--danger); font-size: 0.85rem; margin-bottom: 1rem; display:none;"></div>
+        <button type="submit" class="btn-primary" id="auth-submit-btn" style="width: 100%; justify-content: center; padding: 0.75rem;">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast-notification">Notification Message</div>
+
   <script>
     // System State & Persistence
     let state = {
@@ -414,6 +531,8 @@
       isRunning: false,
       mode: 'Focus',
       timerId: null,
+      currentUser: localStorage.getItem('fp_username') || null,
+      token: localStorage.getItem('fp_jwt') || null,
       stats: JSON.parse(localStorage.getItem('fp_stats')) || { focusMins: 0, completedTasks: 0, streak: 1 },
       tasks: JSON.parse(localStorage.getItem('fp_tasks')) || [
         { id: 1, title: 'MPSC GS Paper Study', done: false },
@@ -436,7 +555,182 @@
     const statStreak = document.getElementById('stat-streak');
     const themeToggle = document.getElementById('theme-toggle');
 
-    // Web Audio Synthesizer for Concentration Sounds
+    // Auth Elements
+    const authBtn = document.getElementById('auth-btn');
+    const authModal = document.getElementById('auth-modal');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const tabLogin = document.getElementById('tab-login');
+    const tabSignup = document.getElementById('tab-signup');
+    const authForm = document.getElementById('auth-form');
+    const authUsername = document.getElementById('auth-username');
+    const authPassword = document.getElementById('auth-password');
+    const authError = document.getElementById('auth-error');
+    const authSubmitBtn = document.getElementById('auth-submit-btn');
+    const userBadge = document.getElementById('user-badge');
+    const usernameDisplay = document.getElementById('username-display');
+    const syncStatus = document.getElementById('sync-status');
+    const toastNotification = document.getElementById('toast-notification');
+
+    let currentAuthTab = 'login';
+
+    function showToast(msg) {
+      toastNotification.textContent = msg;
+      toastNotification.style.display = 'block';
+      setTimeout(() => { toastNotification.style.display = 'none'; }, 3000);
+    }
+
+    // UI User Update
+    function updateAuthUI() {
+      if (state.token && state.currentUser) {
+        userBadge.style.display = 'inline-flex';
+        usernameDisplay.textContent = state.currentUser;
+        authBtn.textContent = '🚪 Sign Out';
+        authBtn.classList.replace('btn-accent', 'btn-secondary');
+        syncStatus.textContent = '☁️ Cloud Account Synced';
+        syncStatus.style.color = 'var(--accent)';
+      } else {
+        userBadge.style.display = 'none';
+        authBtn.textContent = '🔐 Sign In / Register';
+        authBtn.classList.replace('btn-secondary', 'btn-accent');
+        syncStatus.textContent = '💾 Local Mode (Sign in to save)';
+        syncStatus.style.color = 'var(--text-muted)';
+      }
+    }
+
+    // Cloud Data Sync API
+    async function syncCloudData(action = 'pull') {
+      if (!state.token) return;
+      try {
+        if (action === 'pull') {
+          const res = await fetch('/api/data', {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            state.stats.focusMins = data.total_minutes || 0;
+            state.stats.completedTasks = data.tasks_completed || 0;
+            state.stats.streak = data.streak || 1;
+            if (data.tasks) {
+              try { state.tasks = JSON.parse(data.tasks); } catch(e){}
+            }
+            saveLocalState();
+            renderTasks();
+            saveStats();
+          } else if (res.status === 401) {
+            logout();
+          }
+        } else if (action === 'push') {
+          await fetch('/api/data', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`
+            },
+            body: JSON.stringify({
+              total_minutes: state.stats.focusMins,
+              tasks_completed: state.stats.completedTasks,
+              streak: state.stats.streak,
+              tasks: JSON.stringify(state.tasks)
+            })
+          });
+        }
+      } catch (err) {
+        console.error("Cloud Sync Error:", err);
+      }
+    }
+
+    function saveLocalState() {
+      localStorage.setItem('fp_stats', JSON.stringify(state.stats));
+      localStorage.setItem('fp_tasks', JSON.stringify(state.tasks));
+    }
+
+    function logout() {
+      state.token = null;
+      state.currentUser = null;
+      localStorage.removeItem('fp_jwt');
+      localStorage.removeItem('fp_username');
+      updateAuthUI();
+      showToast('Logged out successfully');
+    }
+
+    // Auth Modal Handlers
+    authBtn.addEventListener('click', () => {
+      if (state.token) {
+        logout();
+      } else {
+        authModal.classList.add('active');
+      }
+    });
+
+    closeModalBtn.addEventListener('click', () => authModal.classList.remove('active'));
+
+    tabLogin.addEventListener('click', () => {
+      currentAuthTab = 'login';
+      tabLogin.classList.add('active');
+      tabSignup.classList.remove('active');
+      authSubmitBtn.textContent = 'Sign In';
+      authError.style.display = 'none';
+    });
+
+    tabSignup.addEventListener('click', () => {
+      currentAuthTab = 'signup';
+      tabSignup.classList.add('active');
+      tabLogin.classList.remove('active');
+      authSubmitBtn.textContent = 'Create Account';
+      authError.style.display = 'none';
+    });
+
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      authError.style.display = 'none';
+      const username = authUsername.value.trim();
+      const password = authPassword.value.trim();
+
+      const endpoint = currentAuthTab === 'login' ? '/api/login' : '/api/signup';
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          if (currentAuthTab === 'signup') {
+            showToast('Account created! Logging in...');
+            // Auto login
+            const loginRes = await fetch('/api/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username, password })
+            });
+            const loginData = await loginRes.json();
+            state.token = loginData.access_token;
+            state.currentUser = loginData.username;
+          } else {
+            state.token = data.access_token;
+            state.currentUser = data.username;
+          }
+
+          localStorage.setItem('fp_jwt', state.token);
+          localStorage.setItem('fp_username', state.currentUser);
+          updateAuthUI();
+          authModal.classList.remove('active');
+          authUsername.value = '';
+          authPassword.value = '';
+          showToast(`Welcome, ${state.currentUser}! Syncing data...`);
+          await syncCloudData('pull');
+        } else {
+          authError.textContent = data.msg || 'Authentication failed';
+          authError.style.display = 'block';
+        }
+      } catch (err) {
+        authError.textContent = 'Server connection error';
+        authError.style.display = 'block';
+      }
+    });
+
+    // Web Audio Synthesizer
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     let audioCtx = null;
     let activeNodes = {};
@@ -485,7 +779,6 @@
         whiteNoise.connect(filter);
         filter.connect(gainNode);
       } else if (type === 'binaural') {
-        // Create 10Hz Binaural Beats (200Hz left, 210Hz right)
         let osc1 = audioCtx.createOscillator();
         let osc2 = audioCtx.createOscillator();
         osc1.frequency.value = 200;
@@ -563,7 +856,7 @@
       let gain = audioCtx.createGain();
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-      osc.frequency.value = 587.33; // D5
+      osc.frequency.value = 587.33;
       gain.gain.value = 0.3;
       osc.start();
       osc.stop(audioCtx.currentTime + 0.8);
@@ -581,7 +874,7 @@
       });
     });
 
-    // Sound Card Listeners
+    // Sound Cards
     document.querySelectorAll('.sound-card').forEach(card => {
       const soundType = card.dataset.sound;
       const slider = card.querySelector('.sound-slider');
@@ -643,14 +936,16 @@
     });
 
     function saveTasks() {
-      localStorage.setItem('fp_tasks', JSON.stringify(state.tasks));
+      saveLocalState();
+      syncCloudData('push');
     }
 
     function saveStats() {
-      localStorage.setItem('fp_stats', JSON.stringify(state.stats));
+      saveLocalState();
       statTotalMins.textContent = state.stats.focusMins;
       statCompletedTasks.textContent = state.stats.completedTasks;
       statStreak.textContent = state.stats.streak;
+      syncCloudData('push');
     }
 
     // Event Listeners
@@ -672,10 +967,14 @@
       }
     });
 
-    // Init
+    // Init Page
     updateTimerUI();
     renderTasks();
     saveStats();
+    updateAuthUI();
+    if (state.token) {
+      syncCloudData('pull');
+    }
   </script>
 </body>
 </html>

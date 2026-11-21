@@ -28,6 +28,9 @@ class StudyData(db.Model):
     total_minutes = db.Column(db.Integer, default=0)
     tasks_completed = db.Column(db.Integer, default=0)
     streak = db.Column(db.Integer, default=0)
+    daily_goal = db.Column(db.Integer, default=120)
+    minutes_today = db.Column(db.Integer, default=0)
+    last_study_date = db.Column(db.String(20), default=lambda: datetime.datetime.utcnow().strftime('%Y-%m-%d'))
     tasks_json = db.Column(db.Text, default='[]') # JSON string of tasks
     last_updated = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
@@ -71,10 +74,20 @@ def login():
 def get_data():
     user_id = get_jwt_identity()
     data = StudyData.query.filter_by(user_id=user_id).first()
+    
+    # Check for day change
+    today = datetime.datetime.utcnow().strftime('%Y-%m-%d')
+    if data.last_study_date != today:
+        # If it's a new day, we don't reset minutes_today here, 
+        # we let the POST handle it or just return 0 for the UI
+        pass
+
     return jsonify({
         "total_minutes": data.total_minutes,
         "tasks_completed": data.tasks_completed,
         "streak": data.streak,
+        "daily_goal": data.daily_goal,
+        "minutes_today": data.minutes_today if data.last_study_date == today else 0,
         "tasks": data.tasks_json
     })
 
@@ -85,9 +98,35 @@ def save_data():
     incoming = request.get_json()
     data = StudyData.query.filter_by(user_id=user_id).first()
     
+    today_dt = datetime.datetime.utcnow()
+    today_str = today_dt.strftime('%Y-%m-%d')
+    
+    # Streak & Daily Reset Logic
+    if data.last_study_date != today_str:
+        # Check if they met goal yesterday
+        yesterday_str = (today_dt - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        if data.last_study_date == yesterday_str:
+            if data.minutes_today >= data.daily_goal:
+                data.streak += 1
+            else:
+                # Goal missed yesterday, but they studied. 
+                # Some apps keep streak if you study at all, 
+                # but let's be strict: must meet goal.
+                # Actually, let's be encouraging: if they studied at all, keep streak.
+                if data.minutes_today == 0: data.streak = 0
+        else:
+            # Gap of more than 1 day
+            data.streak = 0
+            
+        data.minutes_today = 0
+        data.last_study_date = today_str
+
     if 'total_minutes' in incoming: data.total_minutes = incoming['total_minutes']
     if 'tasks_completed' in incoming: data.tasks_completed = incoming['tasks_completed']
     if 'streak' in incoming: data.streak = incoming['streak']
+    if 'daily_goal' in incoming: data.daily_goal = incoming['daily_goal']
+    if 'minutes_today' in incoming: data.minutes_today = incoming['minutes_today']
     if 'tasks' in incoming: data.tasks_json = incoming['tasks']
     
     data.last_updated = datetime.datetime.utcnow()
